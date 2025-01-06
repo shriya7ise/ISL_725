@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Webcam Gesture and Face Tracking</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+</head>
+<body>
+    <video id="webcam" autoplay playsinline></video>
+    <button id="startWebcam">Start Webcam</button>
+    <button id="stopWebcam" disabled>Stop Webcam</button>
+    <div id="prediction"></div>
+    <script>
+        const video = document.getElementById('webcam');
+        const startButton = document.getElementById('startWebcam');
+        const stopButton = document.getElementById('stopWebcam');
+        const predictionDiv = document.getElementById('prediction');
+        let mediaRecorder;
+        let recordedChunks = [];
+        let stream;
+
+        startButton.addEventListener('click', async () => {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            video.srcObject = stream;
+            startButton.disabled = true;
+            stopButton.disabled = false;
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.start();
+            mediaRecorder.ondataavailable = handleDataAvailable;
+            mediaRecorder.onstop = handleStop;
+        });
+        stopButton.addEventListener('click', () => {
+            mediaRecorder.stop();
+        });
+
+        function handleDataAvailable(event) {
+            if (event.data.size > 0) {
+                recordedChunks.push(event.data);
+            }
+        }
+
+        async function handleStop(event) {
+            const blob = new Blob(recordedChunks, {
+                type: 'video/webm'
+            });
+            const formData = new FormData();
+            formData.append('video', blob, 'webcam_video.webm');
+            try {
+                const response = await $.ajax({
+                    url: '/process_webcam_video',
+                    method: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    cache: false
+                });
+                const data = JSON.parse(response.responseText);
+                predictionDiv.textContent = data.prediction; // Display prediction
+            } catch (error) {
+                console.error('Error:', error);
+                predictionDiv.textContent = "Error processing video.";
+            }
+            recordedChunks = [];
+            stream.getTracks().forEach(track => track.stop());
+            startButton.disabled = false;
+            stopButton.disabled = true;
+        }
+    </script>
+</body>
+</html>
