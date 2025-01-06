@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ISL Webpage</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-image: url('your-background-image.jpg'); /* Replace with your image path */
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      color: white;
+      font-family: sans-serif; /* Added a default font */
+    }
+
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(84, 82, 82, 0.7);
+      z-index: -1;
+    }
+
+    .sidebar {
+      background-color: rgba(46, 58, 72, 0.8);
+      color: white;
+      height: 100vh;
+      padding-top: 50px;
+    }
+
+    .sidebar h1 {
+      font-size: 24px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .sidebar .menu-item {
+      padding: 10px 20px;
+      margin: 5px;
+      border-radius: 5px;
+      background: rgba(57, 75, 89, 0.7);
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .sidebar .menu-item:hover {
+      background: rgba(74, 101, 114, 0.7);
+    }
+
+    .sidebar .menu-item.active {
+      background: #4db6ac;
+    }
+
+    .main-content {
+      padding: 30px;
+    }
+
+    .header h1 {
+      font-size: 30px;
+      color: white;
+    }
+
+    .card {
+      background-color: rgba(255, 255, 255, 0.1);
+      border: none;
+    }
+
+    .card-body h2, .card-body p {
+      color: white;
+    }
+
+    .btn-custom {
+      padding: 12px 30px;
+      font-size: 16px;
+      border-radius: 8px;
+      color: white;
+      border: none; /* remove default button border */
+    }
+
+    .btn-webcam {
+      background-color: #28a745;
+    }
+
+    .btn-upload {
+      background-color: #ffc107;
+    }
+
+    .table {
+      background-color: rgba(0, 0, 0, 0.3);
+    }
+
+    .table thead th, .table tbody td {
+      color: white;
+      border-color: rgba(255, 255, 255, 0.2); /* Subtle white border for table cells */
+    }
+    .recent-transcriptions h2{
+        color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="overlay"></div>
+  <div class="d-flex">
+    <div class="sidebar p-3">
+      <h1>ISL</h1>
+      <div class="menu-item active">Home</div>
+      <div class="menu-item">Transcriptions</div>
+      <div class="menu-item">Learn</div>
+      <div class="menu-item">Lab</div>
+      <div class="menu-item">Settings</div>
+    </div>
+
+    <div class="main-content flex-fill">
+      <div class="header d-flex justify-content-between align-items-center mb-4">
+        <h1>Welcome to ISL Recognition</h1>
+        <input type="text" class="form-control w-25" placeholder="Search...">
+      </div>
+
+      <div class="row g-4 mb-4">
+        <div class="col-lg-6 col-md-12">
+          <div class="card">
+            <div class="card-body text-center">
+              <h2>Stream from Webcam</h2>
+              <p>Capture real-time gestures using your webcam and get instant recognition.</p>
+              <button class="btn btn-custom btn-webcam" onclick="window.location.href='live-recognition.html'">Start Webcam</button>
+              <button id="stopWebcam" class="btn btn-custom btn-webcam" disabled>Stop Webcam</button>
+              <div id="prediction"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-6 col-md-12">
+          <div class="card">
+            <div class="card-body text-center">
+              <h2>Upload a File</h2>
+              <p>Upload a video file to analyze gestures from your recordings.</p>
+              <form action="/predict" method="POST" enctype="multipart/form-data">
+                <input type="file" name="file" class="form-control" accept="audio/*,video/*" required>
+                <button type="submit" class="btn btn-custom btn-upload mt-3">Upload</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="recent-transcriptions">
+        <h2>Recent Transcriptions</h2>
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Type</th>
+              <th>Transcription</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Example 1</td>
+              <td>Webcam</td>
+              <td>Hello World</td>
+            </tr>
+            <tr>
+              <td>Example 2</td>
+              <td>File</td>
+              <td>How are you?</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const video = document.createElement('video');
+    const startButton = document.getElementById('startWebcam');
+    const stopButton = document.getElementById('stopWebcam');
+    const predictionDiv = document.getElementById('prediction');
+    let mediaRecorder;
+    let recordedChunks = [];
+    let stream;
+
+    startButton.addEventListener('click', async () => {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        video.srcObject = stream;
+        video.play();
+        startButton.disabled = true;
+        stopButton.disabled = false;
+        
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.start();
+        mediaRecorder.ondataavailable = handleDataAvailable;
+        mediaRecorder.onstop = handleStop;
+    });
+
+    stopButton.addEventListener('click', () => {
+        mediaRecorder.stop();
+    });
+
+    function handleDataAvailable(event) {
+        if (event.data.size > 0) {
+            recordedChunks.push(event.data);
+        }
+    }
+
+    async function handleStop(event) {
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const formData = new FormData();
+        formData.append('video', blob, 'webcam_video.webm');
+        
+        try {
+            const response = await $.ajax({
+                url: '/process_webcam_video',
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                cache: false
+            });
+
+            const data = JSON.parse(response.responseText);
+            predictionDiv.textContent = `Prediction: ${data.prediction}`;
+        } catch (error) {
+            console.error('Error:', error);
+            predictionDiv.textContent = "Error processing video.";
+        }
+
+        recordedChunks = [];
+        stream.getTracks().forEach(track => track.stop());
+        startButton.disabled = false;
+        stopButton.disabled = true;
+    }
+  </script>
+</body>
+</html>
